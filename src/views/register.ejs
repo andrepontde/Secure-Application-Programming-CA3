@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Register | Mini Feedback Board</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="container">
+    <%- include('partials/nav', { user }) %>
+    <main class="form-box">
+      <h1>Account Registration</h1>
+      <% if (error) { %><p class="error"><%= error %></p><% } %>
+      <form action="/register" method="post">
+        <label for="username">Username</label>
+        <input id="username" name="username" minlength="3" maxlength="32"
+          pattern="[A-Za-z0-9_]+" autocomplete="username" required>
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" minlength="8"
+          maxlength="72" autocomplete="new-password" required>
+        <button type="submit">Register</button>
+      </form>
+      <p>Already have an account? <a href="/login">Log in here</a>.</p>
+    </main>
+  </div>
+</body>
+</html>

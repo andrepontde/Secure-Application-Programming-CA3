@@ -1,0 +1,32 @@
+{
+  "name": "mini-feedback",
+  "version": "1.0.0",
+  "description": "Mini feedback board for the Secure application programming module",
+  "homepage": "https://github.com/andrepontde/Secure-Application-Programming-CA3#readme",
+  "bugs": {
+    "url": "https://github.com/andrepontde/Secure-Application-Programming-CA3/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/andrepontde/Secure-Application-Programming-CA3.git"
+  },
+  "license": "ISC",
+  "author": "Andre Pont",
+  "type": "commonjs",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.8.1",
+    "dotenv": "^16.4.7",
+    "ejs": "^3.1.10",
+    "express": "^4.21.2",
+    "express-session": "^1.18.1"
+  }
+}

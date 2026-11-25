@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Login | Mini Feedback Board</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="container">
+    <%- include('partials/nav', { user }) %>
+    <main class="form-box">
+      <h1>Account Login</h1>
+      <% if (registered) { %>
+        <p class="success">Account created. You can now log in.</p>
+      <% } %>
+      <% if (error) { %><p class="error"><%= error %></p><% } %>
+      <form action="/login" method="post">
+        <label for="username">Username</label>
+        <input id="username" name="username" autocomplete="username" required>
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password"
+          autocomplete="current-password" required>
+        <button type="submit">Log in</button>
+      </form>
+      <p>Don't have an account? <a href="/register">Register here</a>.</p>
+    </main>
+  </div>
+</body>
+</html>

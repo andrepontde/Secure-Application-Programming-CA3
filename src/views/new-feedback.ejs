@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>New Feedback | Mini Feedback Board</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="container">
+    <%- include('partials/nav', { user }) %>
+    <main class="form-box">
+      <h1>New Feedback</h1>
+      <% if (error) { %><p class="error"><%= error %></p><% } %>
+      <form action="/feedback/new" method="post">
+        <label for="category">Category</label>
+        <select id="category" name="category" required>
+          <option>Bug</option>
+          <option>Feature</option>
+          <option>General</option>
+        </select>
+        <label for="title">Post title</label>
+        <input id="title" name="title" maxlength="100" required>
+        <label for="body">Message body</label>
+        <textarea id="body" name="body" rows="6" maxlength="5000" required></textarea>
+        <button type="submit">Submit post</button>
+      </form>
+    </main>
+  </div>
+</body>
+</html>

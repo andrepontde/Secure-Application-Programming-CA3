@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin | Mini Feedback Board</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="container">
+    <%- include('partials/nav', { user }) %>
+    <h1>Admin Dashboard</h1>
+    <h2>Manage Feedback Posts</h2>
+    <% if (feedback.length === 0) { %>
+      <p>No feedback to moderate.</p>
+    <% } %>
+    <% feedback.forEach((post) => { %>
+      <article class="post">
+        <h2><%= post.title %></h2>
+        <p><strong>Author:</strong> <%= post.username %></p>
+        <p><strong>Category:</strong> <%= post.category %></p>
+        <p class="post-body"><%= post.body %></p>
+        <form action="/admin/feedback/<%= post.id %>/delete" method="post">
+          <button type="submit">Delete post</button>
+        </form>
+      </article>
+    <% }) %>
+    <section aria-labelledby="security-log-heading">
+      <h2 id="security-log-heading">Recent Security Activity</h2>
+      <% if (logs.length === 0) { %>
+        <p>No security events have been recorded.</p>
+      <% } else { %>
+        <ol>
+          <% logs.forEach((entry) => { %>
+            <li><code><%= entry %></code></li>
+          <% }) %>
+        </ol>
+        <p>Showing up to the 200 most recent events.</p>
+      <% } %>
+    </section>
+  </div>
+</body>
+</html>

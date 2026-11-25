@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Error | Mini Feedback Board</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="container">
+    <%- include('partials/nav', { user }) %>
+    <h1>Access denied</h1>
+    <p><%= message %></p>
+    <a href="/">Return to the board</a>
+  </div>
+</body>
+</html>

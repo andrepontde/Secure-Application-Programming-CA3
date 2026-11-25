@@ -125,7 +125,7 @@ function createApp(db, options = {}) {
       ).get(username);
 
       if (!user || !(await bcrypt.compare(password, user.password_hash))) {
-        logActivity('LOGIN_FAILED', logFile);
+        logActivity('AUTH_FAILURE', logFile);
         return res.status(401).render('login', {
           user: null,
           registered: false,

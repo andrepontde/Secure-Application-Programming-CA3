@@ -24,15 +24,24 @@ async function startTestApp(t, { admin = false } = {}) {
     server.once('error', reject);
   });
 
+  let databaseClosed = false;
+  function closeDatabase() {
+    if (!databaseClosed) {
+      db.close();
+      databaseClosed = true;
+    }
+  }
+
   t.after(async () => {
     await new Promise((resolve, reject) => {
       server.close((error) => error ? reject(error) : resolve());
     });
-    db.close();
+    closeDatabase();
     fs.rmSync(logFolder, { recursive: true, force: true });
   });
 
   return {
+    closeDatabase,
     db,
     logFile,
     url: `http://127.0.0.1:${server.address().port}`
@@ -67,6 +76,15 @@ test('UC-1 and UC-2: a registered user logs in and submits feedback', async (t) 
   const protectedPage = await fetch(`${url}/feedback/new`, { redirect: 'manual' });
   assert.equal(protectedPage.status, 302);
   assert.equal(protectedPage.headers.get('location'), '/login');
+
+  const unauthenticatedPost = await postForm(url, '/feedback/new', {
+    title: 'Unauthenticated post',
+    category: 'General',
+    body: 'This must not be stored.'
+  });
+  assert.equal(unauthenticatedPost.status, 302);
+  assert.equal(unauthenticatedPost.headers.get('location'), '/login');
+  assert.equal(db.prepare('SELECT COUNT(*) AS count FROM feedback').get().count, 0);
 
   const register = await postForm(url, '/register', {
     username: 'board_user',
@@ -131,21 +149,36 @@ test('UC-1: invalid registration and feedback input is rejected', async (t) => {
   assert.equal(db.prepare('SELECT COUNT(*) AS count FROM feedback').get().count, 0);
 });
 
-test('UC-2: SQL injection login input fails with a generic response and audit event', async (t) => {
+test('UC-2: wrong credentials and SQL injection input fail generically and are audited', async (t) => {
   const { logFile, url } = await startTestApp(t);
   const password = 'never-log-this-password';
-  const response = await postForm(url, '/login', {
+  const register = await postForm(url, '/register', {
+    username: 'known_user',
+    password: 'a-valid-test-password'
+  });
+  assert.equal(register.status, 302);
+
+  const wrongPassword = await postForm(url, '/login', {
+    username: 'known_user',
+    password
+  });
+  assert.equal(wrongPassword.status, 401);
+  const wrongPasswordHtml = await wrongPassword.text();
+  assert.match(wrongPasswordHtml, /Invalid username or password/);
+  assert.doesNotMatch(wrongPasswordHtml, /SQLITE|SELECT|stack/i);
+
+  const injectionResponse = await postForm(url, '/login', {
     username: "' OR '1'='1",
     password
   });
 
-  assert.equal(response.status, 401);
-  const html = await response.text();
-  assert.match(html, /Invalid username or password/);
-  assert.doesNotMatch(html, /SQLITE|SELECT|stack/i);
+  assert.equal(injectionResponse.status, 401);
+  const injectionHtml = await injectionResponse.text();
+  assert.match(injectionHtml, /Invalid username or password/);
+  assert.doesNotMatch(injectionHtml, /SQLITE|SELECT|stack/i);
 
   const log = fs.readFileSync(logFile, 'utf8');
-  assert.match(log, /LOGIN_FAILED/);
+  assert.equal((log.match(/AUTH_FAILURE/g) || []).length, 2);
   assert.doesNotMatch(log, /never-log-this-password|' OR/);
 });
 
@@ -174,6 +207,7 @@ test('UC-3: stored and reflected markup is escaped and search input cannot alter
   assert.match(homeHtml, /&lt;script&gt;alert\(&#34;stored-xss&#34;\)&lt;\/script&gt;/);
   assert.match(homeHtml, /&lt;img src=x onerror=alert\(&#34;stored-xss&#34;\)&gt;/);
   assert.doesNotMatch(homeHtml, /<script>alert\("stored-xss"\)<\/script>/);
+  assert.doesNotMatch(homeHtml, /<script\b[^>]*>/i);
 
   const reflectedPayload = '<script>alert("reflected-xss")</script>';
   const reflectedUrl = new URL(url);
@@ -189,12 +223,27 @@ test('UC-3: stored and reflected markup is escaped and search input cannot alter
   assert.doesNotMatch(await injectionResponse.text(), /private-marker-unique/);
 });
 
+test('UC-3 exception: database errors return a generic page without SQL details', async (t) => {
+  const { closeDatabase, url } = await startTestApp(t);
+  t.mock.method(console, 'error', () => {});
+  closeDatabase();
+
+  const response = await fetch(url);
+  assert.equal(response.status, 500);
+  const html = await response.text();
+  assert.match(html, /Something went wrong/);
+  assert.doesNotMatch(html, /database connection|SQLITE|SELECT|stack/i);
+});
+
 test('UC-4: only admins can moderate posts and admins can review audit events', async (t) => {
   const { db, url } = await startTestApp(t, { admin: true });
   const admin = db.prepare('SELECT id FROM users WHERE username = ?').get('test_admin');
   const postId = db.prepare(`
     INSERT INTO feedback (user_id, title, category, body) VALUES (?, ?, ?, ?)
   `).run(admin.id, 'Post to remove', 'Bug', 'This post will be deleted').lastInsertRowid;
+
+  const guestPage = await fetch(`${url}/admin`);
+  assert.equal(guestPage.status, 403);
 
   const userCookie = await registerAndLogin(url, 'standard_user');
   const deniedPage = await fetch(`${url}/admin`, { headers: { cookie: userCookie } });

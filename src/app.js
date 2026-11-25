@@ -11,10 +11,10 @@ function findFeedback(db, search) {
     SELECT feedback.id, feedback.title, feedback.category, feedback.body,
            users.username
     FROM feedback JOIN users ON users.id = feedback.user_id
-    WHERE feedback.title LIKE ? OR feedback.body LIKE ?
+    WHERE feedback.title LIKE '${search}' OR feedback.body LIKE '${search}'
     ORDER BY feedback.id DESC
   `;
-  return db.prepare(sql).all(`%${search}%`, `%${search}%`);
+  return db.prepare(sql).all();
 }
 
 function createApp(db, options = {}) {
@@ -44,14 +44,9 @@ function createApp(db, options = {}) {
     next();
   }
 
+  // VULNERABLE: broken access control. There is no server-side role check, so
+  // any authenticated user can reach the admin routes and delete posts.
   function requireAdmin(req, res, next) {
-    if (req.session.user?.role !== 'admin') {
-      logActivity('ADMIN_ACCESS_DENIED', logFile);
-      return res.status(403).render('error', {
-        user: req.session.user,
-        message: 'Admin access required.'
-      });
-    }
     next();
   }
 
@@ -88,6 +83,7 @@ function createApp(db, options = {}) {
     }
 
     try {
+      // VULNERABLE: plaintext password stored in the database.
       db.prepare('INSERT INTO users (username, password) VALUES (?, ?)')
         .run(username, password);
       logActivity('ACCOUNT_REGISTERED', logFile);
@@ -119,9 +115,11 @@ function createApp(db, options = {}) {
 
     try {
       logActivity(`LOGIN_ATTEMPT username=${username} password=${password}`, logFile);
+
       const user = db.prepare(
-        'SELECT id, username, password, role FROM users WHERE username = ?'
-      ).get(username);
+        `SELECT id, username, password, role FROM users
+         WHERE username='${username}' AND password='${password}'`
+      ).get();
 
       if (!user || user.password !== password) {
         logActivity('AUTH_FAILURE', logFile);
@@ -194,7 +192,15 @@ function createApp(db, options = {}) {
         ORDER BY feedback.id DESC
       `).all();
       const logs = readActivityLog(logFile);
-      res.render('admin', { user: req.session.user, feedback, logs });
+      // VULNERABLE: the session secret and admin password are rendered into the
+      // admin view, exposing the server's session cookie secret in the browser.
+      res.render('admin', {
+        user: req.session.user,
+        feedback,
+        logs,
+        sessionSecret: secret,
+        adminPassword: process.env.ADMIN_PASSWORD
+      });
     } catch (error) {
       next(error);
     }

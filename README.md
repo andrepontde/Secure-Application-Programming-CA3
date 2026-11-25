@@ -25,6 +25,11 @@ To create an administrator when the database is first initialized, set
 
 Keep the insecure implementation out of `main`.
 
+## Vulnerabilities
+
+The `insecure` branch deliberately reintroduces three vulnerabilities for
+comparison: SQL injection, XSS, and sensitive data exposure.
+
 ## Routes
 
 | Method | Route | Use |

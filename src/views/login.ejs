@@ -14,7 +14,7 @@
       <% if (registered) { %>
         <p class="success">Account created. You can now log in.</p>
       <% } %>
-      <% if (error) { %><p class="error"><%= error %></p><% } %>
+      <% if (error) { %><p class="error"><%- error %></p><% } %>
       <form action="/login" method="post">
         <label for="username">Username</label>
         <input id="username" name="username" autocomplete="username" required>

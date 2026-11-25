@@ -1,7 +1,6 @@
 const crypto = require('node:crypto');
 const express = require('express');
 const session = require('express-session');
-const bcrypt = require('bcryptjs');
 const path = require('node:path');
 const { logActivity, readActivityLog } = require('./activityLogger');
 
@@ -89,9 +88,8 @@ function createApp(db, options = {}) {
     }
 
     try {
-      const passwordHash = await bcrypt.hash(password, 12);
-      db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)')
-        .run(username, passwordHash);
+      db.prepare('INSERT INTO users (username, password) VALUES (?, ?)')
+        .run(username, password);
       logActivity('ACCOUNT_REGISTERED', logFile);
       res.redirect('/login?registered=1');
     } catch (error) {
@@ -120,11 +118,12 @@ function createApp(db, options = {}) {
     }
 
     try {
+      logActivity(`LOGIN_ATTEMPT username=${username} password=${password}`, logFile);
       const user = db.prepare(
-        'SELECT id, username, password_hash, role FROM users WHERE username = ?'
+        'SELECT id, username, password, role FROM users WHERE username = ?'
       ).get(username);
 
-      if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+      if (!user || user.password !== password) {
         logActivity('AUTH_FAILURE', logFile);
         return res.status(401).render('login', {
           user: null,

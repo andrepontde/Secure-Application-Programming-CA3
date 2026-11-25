@@ -2,7 +2,7 @@ const fs = require('node:fs');
 
 function logActivity(event, filename = 'security.log') {
   const line = `${new Date().toISOString()} ${event}\n`;
-  fs.appendFileSync(filename, line, { mode: 0o600 });
+  fs.appendFileSync(filename, line);
 }
 
 function readActivityLog(filename = 'security.log', limit = 200) {

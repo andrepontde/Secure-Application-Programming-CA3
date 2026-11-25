@@ -1,7 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const Database = require('better-sqlite3');
-const bcrypt = require('bcryptjs');
 
 function createDatabase(filename, adminCredentials) {
   if (Boolean(adminCredentials?.username) !== Boolean(adminCredentials?.password)) {
@@ -18,7 +17,7 @@ function createDatabase(filename, adminCredentials) {
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT NOT NULL UNIQUE,
-      password_hash TEXT NOT NULL,
+      password TEXT NOT NULL,
       role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin')),
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
@@ -42,9 +41,8 @@ function createDatabase(filename, adminCredentials) {
 
     const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
     if (!existing) {
-      const passwordHash = bcrypt.hashSync(adminCredentials.password, 12);
-      db.prepare('INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)')
-        .run(username, passwordHash, 'admin');
+      db.prepare('INSERT INTO users (username, password, role) VALUES (?, ?, ?)')
+        .run(username, adminCredentials.password, 'admin');
     }
   }
 

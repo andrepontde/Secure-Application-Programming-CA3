@@ -71,7 +71,7 @@ async function registerAndLogin(url, username = 'board_user') {
 }
 
 test('UC-1 and UC-2: a registered user logs in and submits feedback', async (t) => {
-  const { db, url } = await startTestApp(t);
+  const { db, logFile, url } = await startTestApp(t);
 
   const protectedPage = await fetch(`${url}/feedback/new`, { redirect: 'manual' });
   assert.equal(protectedPage.status, 302);
@@ -93,10 +93,9 @@ test('UC-1 and UC-2: a registered user logs in and submits feedback', async (t) 
   assert.equal(register.status, 302);
 
   const storedPassword = db.prepare(
-    'SELECT password_hash FROM users WHERE username = ?'
-  ).get('board_user').password_hash;
-  assert.notEqual(storedPassword, 'a-strong-password');
-  assert.match(storedPassword, /^\$2[aby]\$/);
+    'SELECT password FROM users WHERE username = ?'
+  ).get('board_user').password;
+  assert.equal(storedPassword, 'a-strong-password');
 
   const login = await postForm(url, '/login', {
     username: 'board_user',
@@ -106,6 +105,10 @@ test('UC-1 and UC-2: a registered user logs in and submits feedback', async (t) 
   const setCookie = login.headers.get('set-cookie');
   assert.match(setCookie, /HttpOnly/i);
   assert.match(setCookie, /SameSite=Lax/i);
+  assert.match(
+    fs.readFileSync(logFile, 'utf8'),
+    /LOGIN_ATTEMPT username=board_user password=a-strong-password/
+  );
   const cookie = setCookie.split(';')[0];
 
   const newPostPage = await fetch(`${url}/feedback/new`, { headers: { cookie } });
@@ -179,7 +182,8 @@ test('UC-2: wrong credentials and SQL injection input fail generically and are a
 
   const log = fs.readFileSync(logFile, 'utf8');
   assert.equal((log.match(/AUTH_FAILURE/g) || []).length, 2);
-  assert.doesNotMatch(log, /never-log-this-password|' OR/);
+  assert.match(log, /LOGIN_ATTEMPT username=known_user password=never-log-this-password/);
+  assert.match(log, /LOGIN_ATTEMPT username=' OR '1'='1 password=never-log-this-password/);
 });
 
 test('UC-3: stored and reflected markup is escaped and search input cannot alter SQL', async (t) => {
@@ -272,6 +276,7 @@ test('UC-4: only admins can moderate posts and admins can review audit events', 
   assert.match(initialAdminHtml, /Recent Security Activity/);
   assert.match(initialAdminHtml, /ADMIN_ACCESS_DENIED/);
   assert.match(initialAdminHtml, /LOGIN_SUCCEEDED/);
+  assert.match(initialAdminHtml, /password=a-long-admin-password/);
 
   const invalidId = await postForm(
     url,

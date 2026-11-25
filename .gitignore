@@ -1,8 +1,2 @@
-.env
 node_modules/
-data/
-*.db
-*.db-shm
-*.db-wal
-security.log
 coverage/

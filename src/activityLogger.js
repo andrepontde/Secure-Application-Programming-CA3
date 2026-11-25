@@ -1,6 +1,6 @@
 const fs = require('node:fs');
 
-function logActivity(event, filename = 'security.log') {
+function logActivity(event, filename = 'data/security.log') {
   const line = `${new Date().toISOString()} ${event}\n`;
   fs.appendFileSync(filename, line);
 }

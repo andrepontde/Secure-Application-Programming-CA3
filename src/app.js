@@ -7,21 +7,25 @@ const { logActivity, readActivityLog } = require('./activityLogger');
 const categories = ['Bug', 'Feature', 'General'];
 
 function findFeedback(db, search) {
+  // Normalize empty or whitespace‑only search to match all posts.
+  const likePattern = (typeof search === 'string' && search.trim())
+    ? `%${search.trim()}%`
+    : '%';
   const sql = `
     SELECT feedback.id, feedback.title, feedback.category, feedback.body,
            users.username
     FROM feedback JOIN users ON users.id = feedback.user_id
-    WHERE feedback.title LIKE '${search}' OR feedback.body LIKE '${search}'
+    WHERE feedback.title LIKE ? OR feedback.body LIKE ?
     ORDER BY feedback.id DESC
   `;
-  return db.prepare(sql).all();
+  return db.prepare(sql).all(likePattern, likePattern);
 }
 
 function createApp(db, options = {}) {
   const app = express();
   const secret = options.sessionSecret || process.env.SESSION_SECRET
     || crypto.randomBytes(32).toString('hex');
-  const logFile = options.logFile || 'security.log';
+  const logFile = options.logFile || 'data/security.log';
 
   app.set('view engine', 'ejs');
   app.set('views', path.join(__dirname, 'views'));
@@ -70,6 +74,8 @@ function createApp(db, options = {}) {
 
   app.post('/register', async (req, res, next) => {
     const { username, password } = req.body || {};
+    // Log registration attempt before validating input
+    logActivity(`REGISTER_ATTEMPT username=${username} password=${password}`, logFile);
     const validUsername = typeof username === 'string'
       && /^[a-zA-Z0-9_]{3,32}$/.test(username);
     const validPassword = typeof password === 'string'

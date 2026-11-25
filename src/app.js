@@ -7,18 +7,15 @@ const { logActivity, readActivityLog } = require('./activityLogger');
 const categories = ['Bug', 'Feature', 'General'];
 
 function findFeedback(db, search) {
-  // Normalize empty or whitespace‑only search to match all posts.
-  const likePattern = (typeof search === 'string' && search.trim())
-    ? `%${search.trim()}%`
-    : '%';
+  // Use raw interpolation – vulnerable to SQL injection.
   const sql = `
     SELECT feedback.id, feedback.title, feedback.category, feedback.body,
            users.username
     FROM feedback JOIN users ON users.id = feedback.user_id
-    WHERE feedback.title LIKE ? OR feedback.body LIKE ?
+    WHERE feedback.title LIKE '${search}' OR feedback.body LIKE '${search}'
     ORDER BY feedback.id DESC
   `;
-  return db.prepare(sql).all(likePattern, likePattern);
+  return db.prepare(sql).all();
 }
 
 function createApp(db, options = {}) {
@@ -111,23 +108,17 @@ function createApp(db, options = {}) {
 
   app.post('/login', async (req, res, next) => {
     const { username, password } = req.body || {};
-    if (typeof username !== 'string' || typeof password !== 'string') {
-      return res.status(400).render('login', {
-        user: null,
-        registered: false,
-        error: 'Enter your username and password.'
-      });
-    }
-
+    // No input validation – the query itself will decide
     try {
       logActivity(`LOGIN_ATTEMPT username=${username} password=${password}`, logFile);
 
+      // Directly use the supplied values in the query – vulnerable to injection
       const user = db.prepare(
         `SELECT id, username, password, role FROM users
          WHERE username='${username}' AND password='${password}'`
       ).get();
 
-      if (!user || user.password !== password) {
+      if (!user) {
         logActivity('AUTH_FAILURE', logFile);
         return res.status(401).render('login', {
           user: null,

@@ -98,6 +98,17 @@ test('UC-1 and UC-2: a registered user logs in and submits feedback', async (t) 
   assert.notEqual(storedPassword, 'a-strong-password');
   assert.match(storedPassword, /^\$2[aby]\$/);
 
+  const secondRegistration = await postForm(url, '/register', {
+    username: 'board_user_two',
+    password: 'a-strong-password'
+  });
+  assert.equal(secondRegistration.status, 302);
+  const secondStoredPassword = db.prepare(
+    'SELECT password_hash FROM users WHERE username = ?'
+  ).get('board_user_two').password_hash;
+  assert.notEqual(secondStoredPassword, 'a-strong-password');
+  assert.notEqual(secondStoredPassword, storedPassword);
+
   const login = await postForm(url, '/login', {
     username: 'board_user',
     password: 'a-strong-password'
@@ -301,4 +312,38 @@ test('UC-4: only admins can moderate posts and admins can review audit events', 
   const updatedHtml = await updatedAdminPage.text();
   assert.doesNotMatch(updatedHtml, /Post to remove/);
   assert.match(updatedHtml, /FEEDBACK_DELETED/);
+});
+
+test('UC-1 and UC-2: body-size boundaries are enforced and logout destroys the session', async (t) => {
+  const { db, url } = await startTestApp(t);
+  const cookie = await registerAndLogin(url);
+
+  const maximumBody = await postForm(url, '/feedback/new', {
+    title: 'Maximum permitted body',
+    category: 'General',
+    body: 'x'.repeat(5000)
+  }, cookie);
+  assert.equal(maximumBody.status, 302);
+  assert.equal(db.prepare('SELECT COUNT(*) AS count FROM feedback').get().count, 1);
+
+  const oversizedBody = await postForm(url, '/feedback/new', {
+    title: 'Oversized body',
+    category: 'General',
+    body: 'x'.repeat(5001)
+  }, cookie);
+  assert.equal(oversizedBody.status, 400);
+  assert.equal(db.prepare('SELECT COUNT(*) AS count FROM feedback').get().count, 1);
+
+  const logout = await fetch(`${url}/logout`, {
+    method: 'POST',
+    headers: { cookie },
+    redirect: 'manual'
+  });
+  assert.equal(logout.status, 302);
+  const protectedPage = await fetch(`${url}/feedback/new`, {
+    headers: { cookie },
+    redirect: 'manual'
+  });
+  assert.equal(protectedPage.status, 302);
+  assert.equal(protectedPage.headers.get('location'), '/login');
 });

@@ -122,7 +122,11 @@ test('UC-1 and UC-2: a registered user logs in and submits feedback', async (t) 
   assert.equal(post.status, 302);
 
   const home = await fetch(url, { headers: { cookie } });
-  assert.match(await home.text(), /Board post/);
+  const homeHtml = await home.text();
+  assert.match(homeHtml, /Board post/);
+
+  const search = await fetch(`${url}/?search=message+from`, { headers: { cookie } });
+  assert.match(await search.text(), /Board post/);
 });
 
 test('UC-1: invalid registration and feedback input is rejected', async (t) => {

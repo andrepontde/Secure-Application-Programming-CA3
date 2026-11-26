@@ -7,15 +7,14 @@ const { logActivity, readActivityLog } = require('./activityLogger');
 const categories = ['Bug', 'Feature', 'General'];
 
 function findFeedback(db, search) {
-  // Use raw interpolation – vulnerable to SQL injection.
-  const sql = `
+  const searchPattern = `%${search}%`;
+  return db.prepare(`
     SELECT feedback.id, feedback.title, feedback.category, feedback.body,
            users.username
     FROM feedback JOIN users ON users.id = feedback.user_id
-    WHERE feedback.title LIKE '${search}' OR feedback.body LIKE '${search}'
+    WHERE feedback.title LIKE ? OR feedback.body LIKE ?
     ORDER BY feedback.id DESC
-  `;
-  return db.prepare(sql).all();
+  `).all(searchPattern, searchPattern);
 }
 
 function createApp(db, options = {}) {
